@@ -7,6 +7,8 @@ A simple bot written for Node.js for playing tunes in Discord voice channels wit
 
 [Click here!](https://discordapp.com/oauth2/authorize?client_id=365644276417298432&scope=bot&permissions=0)
 
+Or if you want to run the code yourself, continue reading.
+
 ## Dependencies
 
 Node.js dependencies:
