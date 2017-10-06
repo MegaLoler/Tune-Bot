@@ -6,7 +6,7 @@ A simple bot written for Node.js for playing tunes in Discord voice channels wit
 ## Dependencies
 
 Node.js dependencies:
-`scriibetune`
+`scribbletune`
 `discord.js`
 
 Command line dependencies:
@@ -15,4 +15,5 @@ Command line dependencies:
 
 ## Run
 
+Put the client token inside a file called `token.txt' and then do this:
 `node tunebot.js`
