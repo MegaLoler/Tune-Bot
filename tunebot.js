@@ -1,8 +1,12 @@
 // todo:
-// multi discord server support
+// loops
+// arbitrary midi program numbers
 // relative octaves (nearest octave)
 // percussion
 // last note again '*'
+//
+// join link:
+// https://discordapp.com/oauth2/authorize?client_id=365644276417298432&scope=bot&permissions=0
 
 var scribble = require('scribbletune');
 
@@ -22,10 +26,13 @@ const programs = {
 	"organ": 19,
 	"guitar": 24,
 	"bass": 35,
+	"synth": 38,
 	"violin": 40,
 	"viola": 41,
 	"cello": 42,
 	"harp": 46,
+	"strings": 48,
+	"choir": 52,
 	"trumpet": 56,
 	"trombone": 57,
 	"tuba": 58,
@@ -129,24 +136,24 @@ function convert_midi_to_wav(program, tempo, volume, out)
 	let stdout = execSync('timidity out.mid -A '+volume+' --adjust-tempo=' + tempo + ' --force-program=' + program + ' -Ow -o ' + out); 
 }
 
-function merge_wavs(count)
+function merge_wavs(id, count)
 {
 	if(count == 0) return;
 	const { execSync } = require('child_process');
 	if(count == 1)
 	{
-		execSync('mv out_0.wav out.wav');
+		execSync('mv out_0_' + id + '.wav out_' + id + '.wav');
 		return;
 	}
 	var files = "";
 	for(var i = 0; i < count; i++)
 	{
-		files += " -i out_" + i + ".wav ";
+		files += " -i out_" + i + "_" + id + ".wav ";
 	}
-	let stdout = execSync('ffmpeg -y ' + files + ' -filter_complex amix=inputs='+count+' out.wav', {stdio:'ignore'});
+	let stdout = execSync('ffmpeg -y ' + files + ' -filter_complex amix=inputs='+count+' out_' + id + '.wav', {stdio:'ignore'});
 }
 
-function generate_wav(expression)
+function generate_wav(id, expression)
 {
 	var parts = expression.split(":");
 	parts = parts.slice(0, 12); // some max args
@@ -169,6 +176,10 @@ function generate_wav(expression)
 		{
 			volume = 50;
 		}
+		else if(p === "double")
+		{
+			tempo *= 2;
+		}
 		else if(p === "half")
 		{
 			tempo /= 2;
@@ -180,10 +191,10 @@ function generate_wav(expression)
 		else
 		{
 			generate_midi(p);
-			convert_midi_to_wav(program, tempo, volume, "out_" + (i++) + ".wav");
+			convert_midi_to_wav(program, tempo, volume, "out_" + (i++) + "_" + id + ".wav");
 		}
 	}
-	merge_wavs(i);
+	merge_wavs(id, i);
 }
 
 const Discord = require("discord.js");
@@ -191,38 +202,41 @@ const client = new Discord.Client();
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}!`);
+	client.user.setGame("~~help");
 });
 
-function getVoiceConnection()
+function getVoiceConnection(guild)
 {
-	// make this work with multiple servers... rn just assuming connected to a single server!
-	return client.voiceConnections.first();
+	for(var vc of client.voiceConnections)
+	{
+		if(guild.id === vc[1].channel.guild.id) return vc[1];
+	}
 }
 
-var playing = false;
-var dispatcher = null;
+var playingStatus = {};
+var dispatchers = {};
 function playSound(message)
 {
-	var voiceConnection = getVoiceConnection();
+	var voiceConnection = getVoiceConnection(message.guild);
 	if(!voiceConnection)
 	{
 		message.reply("You should invite me to a voice channel first! ^^ (Try this: `~~join`)");
 	}
-	else if(playing)
+	else if(playingStatus[message.guild.id])
 	{
 		message.reply("Please wait until I'm finished playing the current tune~ (or stop it with `~~stop`)");
 	}
 	else
 	{
-		dispatcher = voiceConnection.playFile('out.wav');
-		playing = true;
+		dispatchers[message.guild.id] = voiceConnection.playFile('out_'+message.guild.id+'.wav');
+		playingStatus[message.guild.id] = true;
 
-		dispatcher.on('end', () => {
-			playing = false;
-			dispatcher.end();
+		dispatchers[message.guild.id].on('end', () => {
+			playingStatus[message.guild.id] = false;
+			dispatchers[message.guild.id].end();
 		});
 
-		dispatcher.on('error', e => {
+		dispatchers[message.guild.id].on('error', e => {
 		  console.log(e);
 		});
 	}
@@ -234,66 +248,69 @@ client.on('message', message => {
 	if(message.content.startsWith(trigger) && message.content.trim().length > 2)
 	{
 		var cmd = message.content.slice(2);
-		if(message.member.voiceChannel)
+		if(cmd === "join" || cmd === "voice" || cmd === "enter" || cmd === "invite")
 		{
-			if(cmd === "join" || cmd === "voice" || cmd === "enter" || cmd === "invite")
+			if(message.member.voiceChannel)
 			{
 				message.member.voiceChannel.join()
 					.then(connection => {
 						message.reply("I'm in there! ^^");
 						})
 					.catch(console.log);
+			} else {
+				message.reply('You should go into a voice channel first, silly! :3');
 			}
-			else if(cmd === "stop" || cmd === "quit" || cmd === "quiet" || cmd === "end" || cmd === "shush" || cmd === "shh")
+		}
+		else if(cmd === "stop" || cmd === "quit" || cmd === "quiet" || cmd === "end" || cmd === "shush" || cmd === "shh")
+		{
+			if(playingStatus[message.guild.id])
 			{
-				if(playing)
-				{
-					dispatcher.end();
-				}
-				else
-				{
-					message.reply("But I'm not playing anything right now! :o");
-				}
+				dispatchers[message.guild.id].end();
 			}
-			else if(cmd === "leave" || cmd === "exit" || cmd === "part")
+			else
 			{
-				var voiceConnection = getVoiceConnection();
-				if(!voiceConnection)
-				{
-					message.reply("I'm not in a voice channel though, silly. :3");
-				}
-				else
-				{
-					voiceConnection.disconnect();
-					message.reply("Okay, I left... :c");
-				}
+				message.reply("But I'm not playing anything right now! :o");
 			}
-			else if(cmd === "again" || cmd === "repeat" || cmd === "encore")
+		}
+		else if(cmd === "leave" || cmd === "exit" || cmd === "part")
+		{
+			var voiceConnection = getVoiceConnection(message.guild);
+			if(!voiceConnection)
 			{
-				playSound(message);
+				message.reply("I'm not in a voice channel though, silly. :3");
 			}
-			else if(cmd === "instruments" || cmd === "list" || cmd == "instrument")
+			else
 			{
-				var ls = [];
-				for(var k of Object.keys(programs))
-				{
-					ls.push('`'+k+'`');
-				}
-				message.reply("These are the instruments that I know how to play: " + ls.join(", "));
+				voiceConnection.disconnect();
+				message.reply("Okay, I left... :c");
 			}
-			else if(cmd === "examples" || cmd === "example" || cmd === "tunes" || cmd === "songs")
+		}
+		else if(cmd === "again" || cmd === "repeat" || cmd === "encore")
+		{
+			playSound(message);
+		}
+		else if(cmd === "instruments" || cmd === "list" || cmd == "instrument")
+		{
+			var ls = [];
+			for(var k of Object.keys(programs))
 			{
-				var ls = [];
-				for(var k of Object.keys(examples))
-				{
-					ls.push('**'+k+':**```~~'+examples[k]+'```');
-				}
-				message.reply("Here's some examples of tunes you can have me play for you:\n\n" + ls.join('\n\n'));
+				ls.push('`'+k+'`');
+			}
+			message.reply("These are the instruments that I know how to play: " + ls.join(", "));
+		}
+		else if(cmd === "examples" || cmd === "example" || cmd === "tunes" || cmd === "songs")
+		{
+			var ls = [];
+			for(var k of Object.keys(examples))
+			{
+				ls.push('**'+k+':**```~~'+examples[k]+'```');
+			}
+			message.reply("Here's some examples of tunes you can have me play for you:\n\n" + ls.join('\n\n'));
 
-			}
-			else if(cmd === "help" || cmd === "commands" || cmd === "about" || cmd === "info")
-			{
-				message.reply(
+		}
+		else if(cmd === "help" || cmd === "commands" || cmd === "about" || cmd === "info")
+		{
+			message.reply(
 "Hi! I'm **Tune Bot**!  I will play tunes for you that you can compose yourself and share with others! ^^\n\
 \n\
 **Here's some stuff I can do:** _(Commands)_\n\
@@ -311,11 +328,11 @@ First, make sure I'm in a voice channel (if I'm not, you can invite be to one by
 Once I'm in there, ask me to play _Bad Apple_ like this: ```~~defg a- >dc <a-d- agfe defg a-gf edef edc#e defg a- >dc <a-d- agfe defg a-gf e.f.g.a.```\n\
 See my `~~examples` for some more examples of tunes I can play for you!\n\
 If you're interested in composing your own tunes, ask me about my `~~tutorial`! :D"
-				);
-			}
-			else if(cmd === "tutorial" || cmd === "composing" || cmd === "how" || cmd === "howto")
-			{
-				message.reply(
+			);
+		}
+		else if(cmd === "tutorial" || cmd === "composing" || cmd === "how" || cmd === "howto")
+		{
+			message.reply(
 "**How to compose your own tunes!**\n\
 _Basics:_\n\
 After getting my attention by starting your message with `~~`, just tell me what notes you'd like to play! (`c d e f g a b`) I don't care about whitespace, so feel free to space out your musical typing however you like~  If you want to include a musical rest, use `.` and if you'd like to hold out a note a little longer, use `-`.  Just tell me a number if you want to tell me what octave to play the following notes in (`1 2 3 4 5 6 7`), or if you'd just like to move up or down an octave just put a `<` to go down or a `>` to go up. (It'll take affect for the following notes.) You can play chords by putting notes in `[]` like this simple C major triad chord here: `[c e g]`  And finally, if you'd like to really emphasize a note or a chord, just put `^` right before it, and I'll know to play it a little louder than all the rest. :3\n\
@@ -324,28 +341,27 @@ _Multiple Parts:_\n\
 You can also tell me to play multiple parts at once by simply separating them with `:`!  You can even tell me what instrument to play by preceding a part with the instrument name + `:` like this example which plays two parts, one for trumpet and one for tuba: ```~~trumpet: 4efgc-- : tuba: 2cdgc--```\n\
 Just let me know if you'd like to know which `~~instruments` I can play for you!\n\
 Lastly, you can tell me to play different parts at different speeds by preceding a part with the speed + `:` like this example: ```~~fast: piano: c c# d d# e f f# g g# a a# b >^c ... <. c```\n\
-These are the speeds I can do: `slowest slower slow normal fast faster fastest half` (`half` plays at half of whatever speed you already specified)\n\
+These are the speeds I can do: `slowest slower slow normal fast faster fastest half double` (`half` plays at half of whatever speed you already specified, and `double` does twice the speed.)\n\
+And as a little bonus, if you want to play one part quieter than the rest (for background harmony for example) you can just put `quiet:` before the part!\n\
 If you don't tell me which speed to play at, I'll go at a `normal` speed, and if you don't tell me which instrument to play, I'll play the `piano` for you. :3\n\
+\n\
 _Happy Composing!~~_"
-				);
-			}
-			else
+			);
+		}
+		else
+		{
+			var expression = cmd.trim();
+			console.log("Expression: " + expression);
+			try
 			{
-				var expression = cmd.trim();
-				console.log("Expression: " + expression);
-				try
-				{
-					generate_wav(expression);
-					playSound(message);
-				}
-				catch(error)
-				{
-					console.log("\t-> Invalid musical expression!");
-					message.reply("Mmm, I'm sorry, I couldn't figure that one out! ><");
-				}
+				generate_wav(message.guild.id, expression);
+				playSound(message);
 			}
-		} else {
-			message.reply('You should go into a voice channel first, silly! :3');
+			catch(error)
+			{
+				console.log("\t-> Invalid musical expression!");
+				message.reply("Mmm, I'm sorry, I couldn't figure that one out! ><");
+			}
 		}
 	}
 });
