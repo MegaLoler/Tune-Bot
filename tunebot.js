@@ -312,7 +312,8 @@ client.on('message', message => {
 			{
 				ls.push('**'+k+':**```~~'+examples[k]+'```');
 			}
-			message.reply("Here's some examples of tunes you can have me play for you:\n\n" + ls.join('\n\n'));
+			message.reply("Here's some examples of tunes you can have me play for you:\n\n" + ls.slice(0, 5).join('\n\n'));
+			message.reply(ls.slice(5).join('\n\n'));
 
 		}
 		else if(cmd === "help" || cmd === "commands" || cmd === "about" || cmd === "info")
