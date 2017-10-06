@@ -5,8 +5,13 @@ A simple bot written for Node.js for playing tunes in Discord voice channels wit
 
 ## Dependencies
 
+Node.js dependencies:
 `scriibetune`
 `discord.js`
+
+Command line dependencies:
+`timidity++`
+`ffmpeg`
 
 ## Run
 
