@@ -4,6 +4,18 @@
 // relative octaves (nearest octave)
 // percussion
 // last note again '*'
+// edit messages, maybe?
+// encores with arguments
+// somehow fix playing unknown commands as music?
+// add # and double to the tutorial
+// ~~invite-link command
+// private calls and dms
+// looping structures
+// inline tempo and patch changes
+// slap bass, and just names for all the midis :p
+// fix starting rests
+// auto leave voice channels when not in use
+// auto restart on error?
 //
 // join link:
 // https://discordapp.com/oauth2/authorize?client_id=365644276417298432&scope=bot&permissions=0
@@ -23,6 +35,11 @@ const examples = {
 	"Deku Palace": "2^e.<bbb.b.^>e.<b.b...^>e.<bbb.>e.^e.<b.b... :\ntrumpet: 4^e-b>c<^b-a-^gagf#^e-e-^e-ga^g-f#-^ef#ed^e-..",
 	"Twinkle": "slowest: flute: ccggaag-ffeeddc- : piano: 2c>cecfcecd<b>c<afg>c<c",
 	"Mario": "3dd.d.dd.g...g... : 4f#f#.f#.f#f#.[gb]...g... : 5ee.e.ce.g.......",
+	"Magical Sound Shower": ["slow: double: bass: 2a-- >e- <g- f#-- >d- d <f# g- a-- >e- <g- f# .... .... 2a-- >e- <g- f#-- >d- d <f# g- a-- >e- <g- f# : \npiano: 4a- >c- . <g- f#- a- . f#f#g- a- >c- . <g- f# .... .... 4a- >c- . <g- f#- a- . f#f#g- a- >c e . <g- f# :\npiano: 4e- a- . e- d- f#- . ddd- e- a- . e- d .... .... 4e- a- . e- d- f#- . ddd- e- a- . e- d", "MastaGambit"],
+	"Something": ["fast: piano: [4a#4f#][4a#4f#][4a#4f#][4a#4f#][4d#4g#].[4d#4g#].[4c#4f#].[4c#4f#].[4d#4g#]", "MasterFoxify"],
+	"Saria's Song": ["harp: 4f4a4b-4f4a4b-4f4a4b45e5d-4b5c4b4g4e-..4d4e4g4e-..4f4a4b-4f4a4b-4f4a4b5e5d-4b5c5e4b4g-..4b4g4d4e-..4c4d4e-4f4g4a-4b4a4e-...4c4d4e-4f4g4a-4b5c5d-...4c4d4e-4f4g4a-4b4a4e-...4f4e4g4f4a4g4b4a5c4b5d5c5d5e4b5c--....5d", "MasterFoxify"],
+	"Cello Suite III Bourée II": ["cello: cd d#-dcb.c. dc<bagfd#d d#gfd#fg#gf c<b>cdd#fga a#-g#gf-d#- dd#fgg#a#>cd d#-dc<a#g#gf d#----", "Espio"],
+	"All Star": ["slow:3f-4c3a3a-3g3f3f3a#-a3a3g3g3f.3f4c3a3a3g3g3f3f3d.3c-.3f3f4c3a3a3g3g3f3f3a#-3a3a3g3g3f3f-4c3a3a3g-3f3f3g-3d-", "AMD Shill"],
 };
 
 const programs = {
@@ -255,6 +272,7 @@ client.on('message', message => {
 	if(message.content.startsWith(trigger) && message.content.trim().length > 2)
 	{
 		var cmd = message.content.slice(2).toLowerCase();
+		console.log("CMD: " + cmd);
 		if(cmd === "join" || cmd === "voice" || cmd === "enter" || cmd === "invite")
 		{
 			if(message.member.voiceChannel)
@@ -310,10 +328,22 @@ client.on('message', message => {
 			var ls = [];
 			for(var k of Object.keys(examples))
 			{
-				ls.push('**'+k+':**```~~'+examples[k]+'```');
+				var title = k;
+				var example = examples[k];
+				if(typeof(example) == 'object')
+				{
+					var credit = example[1];
+					example = example[0]
+					ls.push('**'+title+':** _(sequenced by '+credit+')_```~~'+example+'```');
+				}
+				else
+				{
+					ls.push('**'+title+':**```~~'+example+'```');
+				}
 			}
 			message.reply("Here's some examples of tunes you can have me play for you:\n\n" + ls.slice(0, 5).join('\n\n'));
-			message.reply(ls.slice(5).join('\n\n'));
+			message.reply(ls.slice(5, 10).join('\n\n'));
+			message.reply(ls.slice(10).join('\n\n'));
 
 		}
 		else if(cmd === "help" || cmd === "commands" || cmd === "about" || cmd === "info")
@@ -349,8 +379,8 @@ _Multiple Parts:_\n\
 You can also tell me to play multiple parts at once by simply separating them with `:`!  You can even tell me what instrument to play by preceding a part with the instrument name + `:` like this example which plays two parts, one for trumpet and one for tuba: ```~~trumpet: 4efgc-- : tuba: 2cdgc--```\n\
 Just let me know if you'd like to know which `~~instruments` I can play for you!\n\
 Lastly, you can tell me to play different parts at different speeds by preceding a part with the speed + `:` like this example: ```~~fast: piano: c c# d d# e f f# g g# a a# b >^c ... <. c```\n\
-These are the speeds I can do: `slowest slower slow normal fast faster fastest half double` (`half` plays at half of whatever speed you already specified, and `double` does twice the speed.)\n\
-And as a little bonus, if you want to play one part quieter than the rest (for background harmony for example) you can just put `quiet:` before the part!\n\
+These are the speeds I can do: `slowest slower slow normal fast faster fastest half double` (`half` plays at half of whatever speed you already specified)\n\
+And as a little bonus, if you want to play one part quieter than the rest, you can just put `quiet:` before the part!\n\
 If you don't tell me which speed to play at, I'll go at a `normal` speed, and if you don't tell me which instrument to play, I'll play the `piano` for you. :3\n\
 \n\
 _Happy Composing!~~_"
