@@ -15,5 +15,5 @@ Command line dependencies:
 
 ## Run
 
-Put the client token inside a file called `token.txt' and then do this:
+Put the client token inside a file called `token.txt` and then do this:
 `node tunebot.js`
