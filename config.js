@@ -4,8 +4,10 @@ const config = {};
 // set testing to true if this is being used on a testing bot (more debug output)
 // pass command line argument "test" to start in testing mode
 // trigger is what is to precede messages to the bot
+// auto leave voice channels after specified seconds
 config.testing = process.argv[2] == "test";
 config.trigger = config.testing ? "!!" : "~~";
+config.autoLeaveTimout = 600; // 10 minutes
 
 // tutorial message
 const tutorialString = `**How to compose your own tunes!**
@@ -61,6 +63,11 @@ config.botStrings = {
 	// when you tell it to leave a voice channel but it's not in one
 	"onLeaveVoiceChannelFail": {
 		string: "I'm not in a voice channel though, silly. :3",
+		enabled: false,
+	},
+	// when it leaves the voice channel automatically
+	"onLeaveVoiceChannel": {
+		string: "I left the voice channel because it was lonely in there...",
 		enabled: false,
 	},
 	// when you ask it to play the tune again

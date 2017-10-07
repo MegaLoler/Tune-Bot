@@ -3,6 +3,7 @@
 // auto leave voice channels when not in use
 // delete messages after a bit in bot channel? maybe?
 // arbitrary midi program numbers
+// arbitrary tempos too
 // relative octaves (nearest octave)
 // percussion
 // edit messages, maybe?
@@ -24,6 +25,8 @@
 // seriouly just... redo all the music code!
 // especially have a proper expression parser
 // server specific config of sorts..
+// including designated bot channel!! so i can make the bot say stuff there it needs to say on its own
+// user example library
 //
 // join link:
 // https://discordapp.com/oauth2/authorize?client_id=365644276417298432&scope=bot&permissions=0
@@ -279,8 +282,26 @@ function getVoiceConnection(guild)
 	}
 }
 
+// timers are for leaving voice channels when not used for a while
 var playingStatus = {};
 var dispatchers = {};
+var timers = {};
+
+// reset the auto leave timer for this guild because it was used
+function voiceEvent(guild)
+{
+	if(timers[guild]) clearTimeout(timers[guild]);
+	timers[guild] = setTimeout(() => {
+		const voiceConnection = getVoiceConnection(guild);
+		if(voiceConnection)
+		{
+			voiceConnection.disconnect();
+			// make designated bot channels a thing first, then do this
+			//sendBotString("onAutoLeaveVoiceChannel", (msg) => message.reply(msg));
+		}
+	}, config.autoLeaveTimout * 1000);
+}
+
 function playSound(message)
 {
 	var voiceConnection = getVoiceConnection(message.guild);
@@ -367,6 +388,7 @@ registerCommand(["join", "voice", "enter", "invite"], (arg, args, message) => {
 		message.member.voiceChannel.join().then(connection => {
 			sendBotString("onJoinVoiceChannel", (msg) => message.reply(msg));
 		}).catch(console.log);
+		voiceEvent(message.guild);
 	} else {
 		sendBotString("onJoinVoiceChannelFail", (msg) => message.reply(msg));
 	}
@@ -376,13 +398,14 @@ registerCommand(["join", "voice", "enter", "invite"], (arg, args, message) => {
 registerCommand(["stop", "quit", "quiet", "end"], (arg, args, message) => {
 	if(playingStatus[message.guild.id])
 	{
-		dispatchers[message.guild.id].end()
+		dispatchers[message.guild.id].end();
 		sendBotString("onStopTune", (msg) => message.reply(msg));
 	}
 	else
 	{
 		sendBotString("onNotPlayingTune", (msg) => message.reply(msg));
 	}
+	voiceEvent(message.guild);
 });
 
 // leave a voice channel
@@ -394,14 +417,19 @@ registerCommand(["leave", "exit", "part"], (arg, args, message) => {
 	}
 	else
 	{
-		voiceConnection.disconnect()
+		voiceConnection.disconnect();
 		sendBotString("onLeaveVoiceChannel", (msg) => message.reply(msg));
 	}
+	if(timers[message.guild]) clearTimeout(timers[message.guild]);
 });
 
 // repeat the last tune
 registerCommand(["again", "repeat", "encore"], (arg, args, message) => {
-	if(playSound(message)) sendBotString("onEncore", (msg) => message.reply(msg));
+	if(playSound(message))
+	{
+		sendBotString("onEncore", (msg) => message.reply(msg));
+		voiceEvent(message.guild);
+	}
 });
 
 // see what known instruments there are
@@ -451,6 +479,7 @@ registerCommand(["play", "tune"], (arg, args, message) => {
 		console.log(`\t-> Invalid musical expression!\n${error}`);
 		sendBotString("onTuneError", (msg) => message.reply(msg));
 	}
+	voiceEvent(message.guild);
 });
 
 // process a message to the bot
