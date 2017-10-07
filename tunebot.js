@@ -1,5 +1,7 @@
 // todo:
 // loops
+// auto leave voice channels when not in use
+// delete messages after a bit in bot channel? maybe?
 // arbitrary midi program numbers
 // relative octaves (nearest octave)
 // percussion
@@ -14,76 +16,25 @@
 // inline tempo and patch changes
 // slap bass, and just names for all the midis :p
 // fix starting rests
-// auto leave voice channels when not in use
 // auto restart on error?
 // read/play midi files?
+// midi import and export via file sends
+// inline musical snippits? :P
+// tts singer
 //
 // join link:
 // https://discordapp.com/oauth2/authorize?client_id=365644276417298432&scope=bot&permissions=0
 
-var scribble = require('scribbletune');
+// libraries
+const scribble = require("scribbletune");
+const Discord = require("discord.js");
 
-const trigger = "~~";
+// config
+const config = require("./config");
 
-const examples = {
-	"Something": "normal: guitar: 2^c.c.3^c.2c.^c.c.3^c...1^a.a.2^a.1a.^a.a.2^a...1^f.f.2^f.1f.^f.f.2^f...1^g.g.2^g.1g.^g.g.2^g... :\n4^[c<g>]--[c<g>].[c<g>]de^[c<g>]--^[c<g>]....^[c<g>]--[c<g>].[c<g>]de^[fc<g>].[ec<g>].^[c<g>]...^[c<g>]--[c<g>].[c<g>]de^[c<g>]--^[c<g>]....^[c<g>]--[c<g>].[c<g>]de^[fc<g>].[ec<g>].^[c<g>].[d<g>].",
-	"Nyan Cat": "fast: 2e.3e.2f#.3f#.2d#.3d#.2g#.3g#.2c#.3c#.2f#.3f#.1b>b<b.>c#.d#. 2e.3e.2f#.3f#.2d#.3d#.2g#.3g#.2c#.3c#.2f#.3f#.1b>b<b.>c#.d#. :\n5f#.g#.dd#.c#dc#<b.b.>c#.d.dc#<b>c#d#f#g#d#f#c#d#<b>c#<b>d#.f#.g#d#f#c#d#<b>dd#dc#<b>c#d.<b>c#d#f#c#dc#<b>c#.<b.b.",
-	"Bad Apple": "fast: tuba: 2d#-->d#.d#c#d#< d#-->d#.d#c#d#< d#-->d#.d#c#d#< d#->d#f#<g#->f#g# 1b-->b.ba#b< 1b-->b.ba#b 2c#-->c#.c#<b>c# <d-->d.dcd  2d#-->d#.d#c#d#< d#-->d#.d#c#d#< d#-->d#.d#c#d#< d#->d#f#<g#->f#g# 1b-->b.ba#b< 1b-->b.ba#b 2c#-->c#.c#<b>c# <d-->d.dcd :\nhalf: trumpet: 4d#e#f#g#a#->d#c#<a#-d#-a#g#f#e# d#e#f#g#a#-g#f#e#d#e#f#e#d#de#  4d#e#f#g#a#->d#c#<a#-d#-a#g#f#e# d#e#f#g#a#-g#f#e#.f#.g#.a#. :\nquiet: trombone: 3a#>c#d#e#f#-a#g#f#-<a#->f#e#d#c# 3a#>c#d#e#f#-e#d#c#<a#>c#d#<a#a#g#g# f#g#a#>e#f#-a#g#f#-<a#->f#e#d#c# 3a#>c#d#e#f#-e#d#c#.d#.e#.e#.",
-	"Something Else": "flute:[3a#>dfa]-----[cfg]---------[<a>ceg]-----[<aa#>df]-----[<ga#>df]--- :\npiano:double: 5^f-f-d-..^c---d-^c---c-<a-..^g---a-..^g-----f-....^f-------c-d.^f--g#a....... :\nsynth: half: 1^a#--a#..^a---......^a--a..^g---^g.......",
-	"Hello, How Are You": "5e[f#b]..e..[ef#].........[d#b]..f#..[eb]........\n5e[f#b]..e..[ef#].........[d#b]..f#..[eb]........\n5e[f#b]..e..[ef#].........[f#b]..e..[ef#]........ :\ng#4g#.....a.........b.....>c#.........\n4g#.....a.........b.....>c#.........\n4g#.....a.........b.....>c#......... :\nflute: 5e............................>c#---\n<b..ee.<b.b.>e.e...f#ef#ef#-g#ag#...e->c#-<b..ee.<b.b.>e.e.e.f#-e.d#.e-........",
-	"Nightmare in Dreamland": "flute:double:5g-------f---d#---d---<a#---g------->c---d---d#---f---d---.........gab>c-..............................c-......<g-......d#-..d-..c-......c-..d-..d#-..c-..<a#-..>c-..<g-...... :\nhalf:piano: [2f>a#>c]-------[2g>a#>d]-------[2g#>g>d#]-------[2b>g>f]-------\n3c[4cd#]2g[4cd#]3c[4cd#]2g[4cd#]3c[4cd#]2g[4cd#]3c[4cd#]2g[4cd#]\n3c[4cd#]2g[4cd#]3c[4cd#]2g[4cd#]3c[4cd#]2g[4cd#]3c[4cd#]2g[4cd#]\n3f[4cf]c[4cf]3f[4cf]2g[4cf]3c[4cd#]2g[4cd#]3c[4cd#]2g[4cd#]",
-	"Kirby": "faster: 4a...>d..ef#.e.f#.g.a...f#..ad...e...<a...>d..ef#.e.f#.g.a...b..ag.f#.e.f#.g...e.f#ga.g.f#.a.f#...d..ef#...<b...>e...e..f#e.d.c#.d.c#...d..d#e.c#.<b.a#. : 2d-3d-2d-3d-2c#-3c#-2c#-3c#-1b-2b-1b-2b-1g-2g-1a-2a- 2d-3d-2d-3d-2c#-3c#-2c#-3c#-2c-3c-2c-3c-1b-2b-1b-2b-1g-2g-1g-2g-1a-2a-1a-2a-2d-3d-2d-3d-1b-2b-1b-2b-1g-2g-1g-2g-1g#-2g#-1g#-2g#-1a-2a-1a-2a-1a-2a-1a-2a-",
-	"Deku Palace": "2^e.<bbb.b.^>e.<b.b...^>e.<bbb.>e.^e.<b.b... :\ntrumpet: 4^e-b>c<^b-a-^gagf#^e-e-^e-ga^g-f#-^ef#ed^e-..",
-	"Twinkle": "slowest: flute: ccggaag-ffeeddc- : piano: 2c>cecfcecd<b>c<afg>c<c",
-	"Mario": "3dd.d.dd.g...g... : 4f#f#.f#.f#f#.[gb]...g... : 5ee.e.ce.g.......",
-	"Magical Sound Shower": ["slow: double: bass: 2a-- >e- <g- f#-- >d- d <f# g- a-- >e- <g- f# .... .... 2a-- >e- <g- f#-- >d- d <f# g- a-- >e- <g- f# : \npiano: 4a- >c- . <g- f#- a- . f#f#g- a- >c- . <g- f# .... .... 4a- >c- . <g- f#- a- . f#f#g- a- >c e . <g- f# :\npiano: 4e- a- . e- d- f#- . ddd- e- a- . e- d .... .... 4e- a- . e- d- f#- . ddd- e- a- . e- d", "MastaGambit"],
-	"Something Else Else": ["fast: piano: [4a#4f#][4a#4f#][4a#4f#][4a#4f#][4d#4g#].[4d#4g#].[4c#4f#].[4c#4f#].[4d#4g#]", "MasterFoxify"],
-	"Saria's Song": ["harp: 4f4a4b-4f4a4b-4f4a4b45e5d-4b5c4b4g4e-..4d4e4g4e-..4f4a4b-4f4a4b-4f4a4b5e5d-4b5c5e4b4g-..4b4g4d4e-..4c4d4e-4f4g4a-4b4a4e-...4c4d4e-4f4g4a-4b5c5d-...4c4d4e-4f4g4a-4b4a4e-...4f4e4g4f4a4g4b4a5c4b5d5c5d5e4b5c--....5d", "MasterFoxify"],
-	"Cello Suite III Bourée II": ["cello: cd d#-dcb.c. dc<bagfd#d d#gfd#fg#gf c<b>cdd#fga a#-g#gf-d#- dd#fgg#a#>cd d#-dc<a#g#gf d#----", "Espio"],
-	"All Star": ["slow:3f-4c3a3a-3g3f3f3a#-a3a3g3g3f.3f4c3a3a3g3g3f3f3d.3c-.3f3f4c3a3a3g3g3f3f3a#-3a3a3g3g3f3f-4c3a3a3g-3f3f3g-3d-", "AMD Shill"],
-};
-
-const programs = {
-	"piano": 0,
-	"harpsi": 6,
-	"clav": 7,
-	"xylo": 13,
-	"organ": 19,
-	"guitar": 24,
-	"bass": 35,
-	"synth": 38,
-	"violin": 40,
-	"viola": 41,
-	"cello": 42,
-	"harp": 46,
-	"strings": 48,
-	"choir": 52,
-	"trumpet": 56,
-	"trombone": 57,
-	"tuba": 58,
-	"sax": 64,
-	"oboe": 68,
-	"clarinet": 71,
-	"piccolo": 72,
-	"flute": 73,
-	"recorder": 74,
-	"square": 80,
-	"saw": 81,
-	"pad": 89,
-	"banjo": 105,
-	"bell": 112,
-}
-
-const tempos = {
-	"normal": 75,
-	"fast": 100,
-	"faster": 150,
-	"fastest": 200,
-	"slow": 50,
-	"slower": 35,
-	"slowest": 20,
-}
-
+// output a midi file from a musical expression
+// translates from tunebot's language to scribbletune's language
+// then uses scribbletune to output the midi file
 function generate_midi(expression)
 {
 	var notes = [];
@@ -155,10 +106,39 @@ function generate_midi(expression)
 	scribble.midi(clip, 'out.mid');
 }
 
+// MAKE THIS ASYNC!!
+
 function convert_midi_to_wav(program, tempo, volume, out)
 {
 	const { execSync } = require('child_process');
 	let stdout = execSync('timidity out.mid -A '+volume+' --adjust-tempo=' + tempo + ' --force-program=' + program + ' -Ow -o ' + out); 
+
+/*
+	const { spawn } = require("child_process");
+        const child = spawn("chibi-scheme", ["-q", "-m", "lambot", "-p", expression]);
+        
+        child.stdout.on("data", (data) => {
+                const str = data.toString().trim();
+                callback(str);
+        });
+        
+        child.stderr.on("data", (data) => {
+                // gross code to supress redefine warnings
+                var str = data.toString().trim();
+                while(str.startsWith("WARNING: importing already defined binding: display") ||
+                   str.startsWith("WARNING: importing already defined binding: import"))
+                {       
+                        if(str.indexOf("\n") == -1) return;
+                        str = str.split("\n").slice(1).join("\n");
+                }
+                if(child.alreadyErrored) return;
+                child.alreadyErrored = true;
+                callback_error(str);
+        });
+        
+        child.on("close", (code) => {
+                // console.log(`child process exited with code ${code}`);
+        });	*/
 }
 
 function merge_wavs(id, count)
@@ -178,6 +158,9 @@ function merge_wavs(id, count)
 	let stdout = execSync('ffmpeg -y ' + files + ' -filter_complex amix=inputs='+count+' out_' + id + '.wav', {stdio:'ignore'});
 }
 
+// make a wave file from an expression
+// id is the id of the discord server
+// each discord server gets their own .wav output
 function generate_wav(id, expression)
 {
 	var parts = expression.split(":");
@@ -189,9 +172,9 @@ function generate_wav(id, expression)
 	for(var p of parts)
 	{
 		p = p.trim().toLowerCase();
-		if(p in programs)
+		if(p in config.programs)
 		{
-			program = programs[p];
+			program = config.programs[p];
 		}
 		else if(p === "loud")
 		{
@@ -209,9 +192,9 @@ function generate_wav(id, expression)
 		{
 			tempo /= 2;
 		}
-		else if(p in tempos)
+		else if(p in config.tempos)
 		{
-			tempo = tempos[p];
+			tempo = config.tempos[p];
 		}
 		else
 		{
@@ -222,13 +205,6 @@ function generate_wav(id, expression)
 	merge_wavs(id, i);
 }
 
-const Discord = require("discord.js");
-const client = new Discord.Client();
-
-client.on('ready', () => {
-	console.log(`Logged in as ${client.user.tag}!`);
-	client.user.setGame("~~help");
-});
 
 function getVoiceConnection(guild)
 {
@@ -245,11 +221,11 @@ function playSound(message)
 	var voiceConnection = getVoiceConnection(message.guild);
 	if(!voiceConnection)
 	{
-		message.reply("You should invite me to a voice channel first! ^^ (Try this: `~~join`)");
+		sendBotString("onNotInVoiceChannel", (msg) => message.reply(msg));
 	}
 	else if(playingStatus[message.guild.id])
 	{
-		message.reply("Please wait until I'm finished playing the current tune~ (or stop it with `~~stop`)");
+		sendBotString("onAlreadyPlayingTune", (msg) => message.reply(msg));
 	}
 	else
 	{
@@ -264,147 +240,214 @@ function playSound(message)
 		dispatchers[message.guild.id].on('error', e => {
 		  console.log(e);
 		});
+
+		return true;
 	}
+	return false;
 }
 
-client.on('message', message => {
-	if(!message.guild) return;
-
-	if(message.content.startsWith(trigger) && message.content.trim().length > 2)
+// send discord messages safely
+// and properly split up messages longer than _limit_ characters
+// callback is the send function for the first chunk
+// tail is for the rest
+function safeSend(msg, callback, callbackTail, chunkDelimiter="\n", charLimit=1800)
+{
+	if(!msg.trim().length) return;
+	var first = msg;
+	var rest = "";
+	// make this safer so it aborts if something can't be split small enough
+	while(first.length > charLimit)
 	{
-		var cmd = message.content.slice(2).toLowerCase();
-		console.log("CMD: " + cmd);
-		if(cmd === "join" || cmd === "voice" || cmd === "enter" || cmd === "invite")
+		if(first.indexOf(chunkDelimiter) == -1)
 		{
-			if(message.member.voiceChannel)
-			{
-				message.member.voiceChannel.join()
-					.then(connection => {
-						message.reply("I'm in there! ^^");
-						})
-					.catch(console.log);
-			} else {
-				message.reply('You should go into a voice channel first, silly! :3');
-			}
+			console.log("\t-> Can't split message into small enough pieces:");
+			console.log(`{${first}}\n`);
+			console.log("\t<-!!");
+			return;
 		}
-		else if(cmd === "stop" || cmd === "quit" || cmd === "quiet" || cmd === "end" || cmd === "shush" || cmd === "shh")
-		{
-			if(playingStatus[message.guild.id])
-			{
-				dispatchers[message.guild.id].end();
-			}
-			else
-			{
-				message.reply("But I'm not playing anything right now! :o");
-			}
-		}
-		else if(cmd === "leave" || cmd === "exit" || cmd === "part")
-		{
-			var voiceConnection = getVoiceConnection(message.guild);
-			if(!voiceConnection)
-			{
-				message.reply("I'm not in a voice channel though, silly. :3");
-			}
-			else
-			{
-				voiceConnection.disconnect();
-				message.reply("Okay, I left... :c");
-			}
-		}
-		else if(cmd === "again" || cmd === "repeat" || cmd === "encore")
-		{
-			playSound(message);
-		}
-		else if(cmd === "instruments" || cmd === "list" || cmd == "instrument")
-		{
-			var ls = [];
-			for(var k of Object.keys(programs))
-			{
-				ls.push('`'+k+'`');
-			}
-			message.reply("These are the instruments that I know how to play: " + ls.join(", "));
-		}
-		else if(cmd === "examples" || cmd === "example" || cmd === "tunes" || cmd === "songs")
-		{
-			var ls = [];
-			for(var k of Object.keys(examples))
-			{
-				var title = k;
-				var example = examples[k];
-				if(typeof(example) == 'object')
-				{
-					var credit = example[1];
-					example = example[0]
-					ls.push('**'+title+':** _(sequenced by '+credit+')_```~~'+example+'```');
-				}
-				else
-				{
-					ls.push('**'+title+':**```~~'+example+'```');
-				}
-			}
-			message.reply("Here's some examples of tunes you can have me play for you:\n\n" + ls.slice(0, 5).join('\n\n'));
-			message.reply(ls.slice(5, 10).join('\n\n'));
-			message.reply(ls.slice(10).join('\n\n'));
+		rest = first.split(chunkDelimiter).slice(-1).concat([rest]).join(chunkDelimiter);
+		first = first.split(chunkDelimiter).slice(0, -1).join(chunkDelimiter);
+	}
+	callback(first);
+	safeSend(rest, callbackTail, callbackTail, chunkDelimiter, charLimit);
+}
 
-		}
-		else if(cmd === "help" || cmd === "commands" || cmd === "about" || cmd === "info")
-		{
-			message.reply(
-"Hi! I'm **Tune Bot**!  I will play tunes for you that you can compose yourself and share with others! ^^\n\
-\n\
-**Here's some stuff I can do:** _(Commands)_\n\
-• `~~join` — I'll join the voice channel you're in. :3\n\
-• `~~leave` — I'll leave the voice channel if you'd really prefer, though I like being in there. :c\n\
-• `~~stop` — I'll stop playing the tune I'm playing.\n\
-• `~~encore` — If you really liked it, I'll play it for you again! :D\n\
-• `~~help` — I'll tell you about myself and what I can do for you~ ^^\n\
-• `~~tutorial` — I'll teach you how to make your very own tunes!\n\
-• `~~instruments` — I'll show you the list of instruments I can play.\n\
-• `~~examples` — I'll show you some examples of some tunes I can play for you. o:\n\
-\n\
-**How to play tunes!** _(Quick Start)_\n\
-First, make sure I'm in a voice channel (if I'm not, you can invite be to one by going into one yourself and then telling me to `~~join` you.\n\
-Once I'm in there, ask me to play _Bad Apple_ like this: ```~~defg a- >dc <a-d- agfe defg a-gf edef edc#e defg a- >dc <a-d- agfe defg a-gf e.f.g.a.```\n\
-See my `~~examples` for some more examples of tunes I can play for you!\n\
-If you're interested in composing your own tunes, ask me about my `~~tutorial`! :D"
-			);
-		}
-		else if(cmd === "tutorial" || cmd === "composing" || cmd === "how" || cmd === "howto")
-		{
-			message.reply(
-"**How to compose your own tunes!**\n\
-_Basics:_\n\
-After getting my attention by starting your message with `~~`, just tell me what notes you'd like to play! (`c d e f g a b`) I don't care about whitespace, so feel free to space out your musical typing however you like~  If you want to include a musical rest, use `.` and if you'd like to hold out a note a little longer, use `-`.  Just tell me a number if you want to tell me what octave to play the following notes in (`1 2 3 4 5 6 7`), or if you'd just like to move up or down an octave just put a `<` to go down or a `>` to go up. (It'll take affect for the following notes.) You can play chords by putting notes in `[]` like this simple C major triad chord here: `[c e g]`  And finally, if you'd like to really emphasize a note or a chord, just put `^` right before it, and I'll know to play it a little louder than all the rest. :3\n\
-\n\
-_Multiple Parts:_\n\
-You can also tell me to play multiple parts at once by simply separating them with `:`!  You can even tell me what instrument to play by preceding a part with the instrument name + `:` like this example which plays two parts, one for trumpet and one for tuba: ```~~trumpet: 4efgc-- : tuba: 2cdgc--```\n\
-Just let me know if you'd like to know which `~~instruments` I can play for you!\n\
-Lastly, you can tell me to play different parts at different speeds by preceding a part with the speed + `:` like this example: ```~~fast: piano: c c# d d# e f f# g g# a a# b >^c ... <. c```\n\
-These are the speeds I can do: `slowest slower slow normal fast faster fastest half double` (`half` plays at half of whatever speed you already specified)\n\
-And as a little bonus, if you want to play one part quieter than the rest, you can just put `quiet:` before the part!\n\
-If you don't tell me which speed to play at, I'll go at a `normal` speed, and if you don't tell me which instrument to play, I'll play the `piano` for you. :3\n\
-\n\
-_Happy Composing!~~_"
-			);
-		}
-		else
-		{
-			var expression = cmd.trim();
-			console.log("Expression: " + expression);
-			try
-			{
-				generate_wav(message.guild.id, expression);
-				playSound(message);
-			}
-			catch(error)
-			{
-				console.log("\t-> Invalid musical expression!");
-				message.reply("Mmm, I'm sorry, I couldn't figure that one out! ><");
-			}
-		}
+// send a bot string from config file
+// with optional stuff after it (arg)
+function sendBotString(string, headSendFunction, tailSendFunction, arg="", chunkDelimiter, charLimit)
+{
+	const stringObj = config.botStrings[string];
+	const msg = stringObj.string + arg;
+	if(stringObj.enabled) safeSend(msg, headSendFunction, tailSendFunction, chunkDelimiter, charLimit);
+}
+
+// map of commands
+const commands = {};
+
+// add a command to the commands map
+// names is all the aliases of the command
+// f is the command function
+function registerCommand(names, f)
+{
+	names.map((v) => {
+		commands[v] = f;
+	});
+}
+
+// the commands
+// join a voice channel
+registerCommand(["join", "voice", "enter", "invite"], (arg, args, message) => {
+	if(message.member.voiceChannel)
+	{
+		message.member.voiceChannel.join().then(connection => {
+			sendBotString("onJoinVoiceChannel", (msg) => message.reply(msg));
+		}).catch(console.log);
+	} else {
+		sendBotString("onJoinVoiceChannelFail", (msg) => message.reply(msg));
 	}
 });
 
-var fs = require('fs');
-var token = fs.readFileSync("token.txt", "ascii").trim();
-client.login(token);
+// stop playing a tune
+registerCommand(["stop", "quit", "quiet", "end"], (arg, args, message) => {
+	if(playingStatus[message.guild.id])
+	{
+		dispatchers[message.guild.id].end()
+		sendBotString("onStopTune", (msg) => message.reply(msg));
+	}
+	else
+	{
+		sendBotString("onNotPlayingTune", (msg) => message.reply(msg));
+	}
+});
+
+// leave a voice channel
+registerCommand(["leave", "exit", "part"], (arg, args, message) => {
+	const voiceConnection = getVoiceConnection(message.guild);
+	if(!voiceConnection)
+	{
+		sendBotString("onLeaveVoiceChannelFail", (msg) => message.reply(msg));
+	}
+	else
+	{
+		voiceConnection.disconnect()
+		sendBotString("onLeaveVoiceChannel", (msg) => message.reply(msg));
+	}
+});
+
+// repeat the last tune
+registerCommand(["again", "repeat", "encore"], (arg, args, message) => {
+	if(playSound(message)) sendBotString("onEncore", (msg) => message.reply(msg));
+});
+
+// see what known instruments there are
+registerCommand(["instruments", "list", "instrument"], (arg, args, message) => {
+	// i'd prefer if this was more functionally written
+	const ls = [];
+	for(var i in Array(128).fill())
+	{
+		const aliases = [];
+		for(var k of Object.keys(config.programs))
+		{
+			if(config.programs[k] == i) aliases.push(`\`${k}\``);
+		}
+		ls.push(`• \`p${parseInt(i) + 1}\`\t` + aliases.join(" "));
+	}
+	sendBotString("onInstrumentRequest", (msg) => message.channel.send(msg), (msg) => message.channel.send(msg), `\n${ls.join("\n")}`);
+});
+
+// see example tunes
+registerCommand(["examples", "examples", "tunes", "songs"], (arg, args, message) => {
+	var ls = [];
+	for(var k of Object.keys(config.examples))
+	{
+		const name = k;
+		const example = config.examples[k];
+		if(example.credit)
+		{
+			ls.push('**'+name+':** _(sequenced by '+example.credit+')_```~~'+example.example+'```');
+		}
+		else
+		{
+			ls.push('**'+name+':** ```~~'+example.example+'```');
+		}
+	}
+	sendBotString("onExampleRequest", (msg) => message.reply(msg), (msg) => message.channel.send(msg), `\n\n${ls.join("\n\n")}`, "\n\n");
+});
+
+// get general help
+registerCommand(["help", "commands", "about", "info"], (arg, args, message) => {
+	sendBotString("onHelpRequest", (msg) => message.reply(msg), (msg) => message.channel.send(msg));
+});
+
+// see the composing tutorial
+registerCommand(["tutorial", "composing", "how", "howto"], (arg, args, message) => {
+	sendBotString("onTutorialRequest", (msg) => message.reply(msg), (msg) => message.channel.send(msg));
+});
+
+// evaluate and play a musical expression
+registerCommand(["play", "tune"], (arg, args, message) => {
+	try
+	{
+		generate_wav(message.guild.id, arg);
+		playSound(message);
+	}
+	catch(error)
+	{
+		console.log(`\t-> Invalid musical expression!\n${error}`);
+		sendBotString("onTuneError", (msg) => message.reply(msg));
+	}
+});
+
+// process a message to the bot
+// the message string, and the originating discord message object
+function processBotMessage(msg, message)
+{
+	// cmd is case insensitive, args retain case
+	const words = msg.split(" ");
+	const cmd = words[0].toLowerCase();
+	const arg = words.slice(1).join(" ");
+	const args = words.slice(1).filter((v) => {
+		return v.length;
+	});
+
+	// get the command function and call it
+	// assume play function if none other found
+	const command = commands[cmd];
+	if(command) command(arg, args, message);
+	else commands.play(msg, words, message);
+}
+
+// make the discord connection
+const client = new Discord.Client();
+
+// once its all connected and good to go
+client.on("ready", () => {
+	console.log(`Logged in as ${client.user.tag}!`);
+	client.user.setGame(`${config.trigger}help`);
+});
+
+// on message recieve
+client.on("message", message => {
+	if(client.user.id === message.author.id) return;
+        const content = message.content.trim();
+        const dm = !message.guild;
+        const triggered = content.startsWith(config.trigger);
+	const msg = triggered ? content.slice(config.trigger.length) : content;
+	if(triggered && msg.length)
+	{
+		// received message directed at the bot
+		console.log(`${message.guild.name}> #${message.channel.name}> ${message.author.username}> ${msg}`);
+		processBotMessage(msg, message);
+	}
+});
+
+// load the token from file and login
+function main()
+{
+	const fs = require("fs");
+	const token = fs.readFileSync("token.txt", "ascii").trim();
+	client.login(token);
+}
+
+// run the bot!
+main();

@@ -23,3 +23,10 @@ Command line dependencies:
 
 Put the client token inside a file called `token.txt` and then do this:
 `node tunebot.js`
+
+Or if you want to run in test mode (uses alternate bot trigger by default) then do this:
+`node tunebot.js test`
+
+## Configuration
+
+If you want to configure the bot to your liking, edit `config.js`.
