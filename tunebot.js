@@ -5,29 +5,33 @@
 // arbitrary midi program numbers
 // relative octaves (nearest octave)
 // percussion
-// last note again '*'
 // edit messages, maybe?
 // encores with arguments
 // somehow fix playing unknown commands as music?
-// add # and double to the tutorial
 // ~~invite-link command
 // private calls and dms
 // looping structures
 // inline tempo and patch changes
-// slap bass, and just names for all the midis :p
 // fix starting rests
 // auto restart on error?
 // read/play midi files?
 // midi import and export via file sends
 // inline musical snippits? :P
 // tts singer
+// "scrolling" game presence for announcements and stuff?
+// debug logger
+// fancy server side repl
+// seriouly just... redo all the music code!
+// especially have a proper expression parser
+// server specific config of sorts..
 //
 // join link:
 // https://discordapp.com/oauth2/authorize?client_id=365644276417298432&scope=bot&permissions=0
 
 // libraries
 const scribble = require("scribbletune");
-const Discord = require("discord.js");
+const discord = require("discord.js");
+const { spawn } = require("child_process");
 
 // config
 const config = require("./config");
@@ -35,13 +39,14 @@ const config = require("./config");
 // output a midi file from a musical expression
 // translates from tunebot's language to scribbletune's language
 // then uses scribbletune to output the midi file
-function generate_midi(expression)
+function generate_midi(expression, out)
 {
 	var notes = [];
 	var pattern = "";
 	var accentMap = [];
 	var octave = 4;
-	var velocity = '70';
+	var defaultVelocity = 64;
+	var velocity = defaultVelocity;
 
 	var target = notes;
 
@@ -52,11 +57,17 @@ function generate_midi(expression)
 			target.push(c + octave);
 			if(target == notes) pattern += 'x';
 			if(target == notes) accentMap.push(velocity);
-			velocity = '70';
+			velocity = defaultVelocity;
 		}
 		else if(c == '#')
 		{
 			target[target.length - 1] += c;
+		}
+		else if(c == ',')
+		{
+			target.push(target[target.length - 1]);
+			if(target == notes) pattern += 'x';
+			if(target == notes) accentMap.push(velocity);
 		}
 		else if(c == '[' && target == notes)
 		{
@@ -64,7 +75,7 @@ function generate_midi(expression)
 			target.push(newNest);
 			target = newNest;
 			pattern += 'x';
-			accentMap.push(velocity);
+			accentMap.push(defaultVelocity);
 			velocity = '70';
 		}
 		else if(c == ']')
@@ -81,7 +92,35 @@ function generate_midi(expression)
 		}
 		else if(c == '^')
 		{
-			if(target == notes) velocity = '110';
+			if(target == notes) velocity = parseInt(velocity) + 16;
+		}
+		else if(c == 'v')
+		{
+			if(target == notes) velocity = parseInt(velocity) - 16;
+		}
+		else if(c == 'p')
+		{
+			if(target == notes)
+			{
+				defaultVelocity = 40;
+				velocity = defaultVelocity;
+			}
+		}
+		else if(c == 'l')
+		{
+			if(target == notes)
+			{
+				defaultVelocity = 88;
+				velocity = defaultVelocity;
+			}
+		}
+		else if(c == 'm')
+		{
+			if(target == notes)
+			{
+				defaultVelocity = 64;
+				velocity = defaultVelocity;
+			}
 		}
 		else if(c == '>')
 		{
@@ -103,72 +142,80 @@ function generate_midi(expression)
 	    accentMap: accentMap,
 	});  
 
-	scribble.midi(clip, 'out.mid');
+	scribble.midi(clip, `${out}.mid`);
 }
 
-// MAKE THIS ASYNC!!
-
-function convert_midi_to_wav(program, tempo, volume, out)
+function convert_midi_to_wav(program, tempo, volume, input, out, callback)
 {
-	const { execSync } = require('child_process');
-	let stdout = execSync('timidity out.mid -A '+volume+' --adjust-tempo=' + tempo + ' --force-program=' + program + ' -Ow -o ' + out); 
-
-/*
 	const { spawn } = require("child_process");
-        const child = spawn("chibi-scheme", ["-q", "-m", "lambot", "-p", expression]);
+        const child = spawn("timidity", [`${input}.mid`, "-A", volume, `--adjust-tempo=${tempo}`, `--force-program=${program}`, "-Ow", "-o", `${out}.wav`]);
         
         child.stdout.on("data", (data) => {
-                const str = data.toString().trim();
-                callback(str);
+		if(config.testing) console.log(`timidity: ${data}`);
         });
         
         child.stderr.on("data", (data) => {
-                // gross code to supress redefine warnings
-                var str = data.toString().trim();
-                while(str.startsWith("WARNING: importing already defined binding: display") ||
-                   str.startsWith("WARNING: importing already defined binding: import"))
-                {       
-                        if(str.indexOf("\n") == -1) return;
-                        str = str.split("\n").slice(1).join("\n");
-                }
-                if(child.alreadyErrored) return;
-                child.alreadyErrored = true;
-                callback_error(str);
+		if(config.testing) console.log(`!!timidity: ${data}`);
         });
         
         child.on("close", (code) => {
-                // console.log(`child process exited with code ${code}`);
-        });	*/
+		if(config.testing || code) console.log(`timidity exit code: ${code}`);
+		if(callback) callback();
+        });
 }
 
-function merge_wavs(id, count)
+function merge_wavs(id, count, callback)
 {
-	if(count == 0) return;
-	const { execSync } = require('child_process');
 	if(count == 1)
 	{
-		execSync('mv out_0_' + id + '.wav out_' + id + '.wav');
-		return;
+		const child = spawn("mv", [`out_0_${id}.wav`, `out_${id}.wav`]);
+		child.on("close", (code) => {
+			if(callback) callback();
+		});
 	}
-	var files = "";
-	for(var i = 0; i < count; i++)
+	else if(count > 1)
 	{
-		files += " -i out_" + i + "_" + id + ".wav ";
+		// do this functionally
+		const inputArgs = [];
+		for(var i = 0; i < count; i++)
+		{
+			inputArgs.push("-i", `out_${i}_${id}.wav`);
+		}
+
+		const out = `out_${id}.wav`;
+		const child = spawn("ffmpeg", ["-y"].concat(inputArgs).concat(["-filter_complex", `amix=inputs=${count}`, out]));
+
+		child.stdout.on("data", (data) => {
+			if(config.testing) console.log(`ffmpeg: ${data}`);
+		});
+		
+		child.stderr.on("data", (data) => {
+			if(config.testing) console.log(`!!ffmpeg: ${data}`);
+		});
+		
+		child.on("close", (code) => {
+			if(config.testing || code) console.log(`ffmpeg exit code: ${code}`);
+			if(callback) callback();
+		});
 	}
-	let stdout = execSync('ffmpeg -y ' + files + ' -filter_complex amix=inputs='+count+' out_' + id + '.wav', {stdio:'ignore'});
 }
 
 // make a wave file from an expression
 // id is the id of the discord server
 // each discord server gets their own .wav output
-function generate_wav(id, expression)
+// calls callback (async) when its done
+function generate_wav(id, expression, callback)
 {
-	var parts = expression.split(":");
-	parts = parts.slice(0, 12); // some max args
+	// i'd like this entire system of evaluating musical expressions to be reworked somehow
+	// to be more flexible and better written
+	// separate all the expressions separated by :
+	// and processes them in order
+	const parts = expression.split(":").slice(0, 12); // some max args for safety
 	var program = 0;
 	var tempo = 75;
 	var volume = 100
 	var i = 0;
+	const processing = [];
 	for(var p of parts)
 	{
 		p = p.trim().toLowerCase();
@@ -198,19 +245,37 @@ function generate_wav(id, expression)
 		}
 		else
 		{
-			generate_midi(p);
-			convert_midi_to_wav(program, tempo, volume, "out_" + (i++) + "_" + id + ".wav");
+			const out = `out_${i}_${id}`;
+			generate_midi(p, out);
+			processing.push(out);
+			convert_midi_to_wav(program, tempo, volume, out, out, () => {
+				const i = processing.indexOf(out);
+				if(i != -1) processing.splice(i, 1);
+			});
+			i++;
 		}
 	}
-	merge_wavs(id, i);
+	// asynchronously wait for all the midis to be converted to wavs
+	function wait()
+	{
+		if(processing.length == 0)
+		{
+			merge_wavs(id, i, callback);
+		}
+		else
+		{
+			setTimeout(wait, 10);
+		}
+	}
+	setTimeout(wait, 0);
 }
 
 
 function getVoiceConnection(guild)
 {
-	for(var vc of client.voiceConnections)
+	for(var voiceChannel of client.voiceConnections)
 	{
-		if(guild.id === vc[1].channel.guild.id) return vc[1];
+		if(guild.id === voiceChannel[1].channel.guild.id) return voiceChannel[1];
 	}
 }
 
@@ -229,16 +294,16 @@ function playSound(message)
 	}
 	else
 	{
-		dispatchers[message.guild.id] = voiceConnection.playFile('out_'+message.guild.id+'.wav');
+		dispatchers[message.guild.id] = voiceConnection.playFile(`out_${message.guild.id}.wav`);
 		playingStatus[message.guild.id] = true;
 
-		dispatchers[message.guild.id].on('end', () => {
+		dispatchers[message.guild.id].on("end", () => {
 			playingStatus[message.guild.id] = false;
 			dispatchers[message.guild.id].end();
 		});
 
-		dispatchers[message.guild.id].on('error', e => {
-		  console.log(e);
+		dispatchers[message.guild.id].on("error", error => {
+			console.log(`\t->Error playing file:\n${error}`);
 		});
 
 		return true;
@@ -341,36 +406,25 @@ registerCommand(["again", "repeat", "encore"], (arg, args, message) => {
 
 // see what known instruments there are
 registerCommand(["instruments", "list", "instrument"], (arg, args, message) => {
-	// i'd prefer if this was more functionally written
-	const ls = [];
-	for(var i in Array(128).fill())
-	{
-		const aliases = [];
-		for(var k of Object.keys(config.programs))
-		{
-			if(config.programs[k] == i) aliases.push(`\`${k}\``);
-		}
-		ls.push(`• \`p${parseInt(i) + 1}\`\t` + aliases.join(" "));
-	}
+	// get the list of instrument strings
+	const ls = Array(128).fill().map((v, i) => {
+		const aliases = Object.keys(config.programs).filter((key) => {
+			return config.programs[key] == i;
+		}).map((alias) => {
+			return `\`${alias}\``;
+		}).join(" ");
+		return `• \`p${parseInt(i) + 1}\`\t${aliases}`;
+	});
 	sendBotString("onInstrumentRequest", (msg) => message.channel.send(msg), (msg) => message.channel.send(msg), `\n${ls.join("\n")}`);
 });
 
 // see example tunes
 registerCommand(["examples", "examples", "tunes", "songs"], (arg, args, message) => {
-	var ls = [];
-	for(var k of Object.keys(config.examples))
-	{
-		const name = k;
-		const example = config.examples[k];
-		if(example.credit)
-		{
-			ls.push('**'+name+':** _(sequenced by '+example.credit+')_```~~'+example.example+'```');
-		}
-		else
-		{
-			ls.push('**'+name+':** ```~~'+example.example+'```');
-		}
-	}
+	// get the list of example strings
+	const ls = Object.keys(config.examples).map((key) => {
+		const example = config.examples[key];
+		return `**${key}**:${ example.credit ? ` _(sequenced by ${example.credit})_` : " " }\`\`\`${config.trigger}${example.example}\`\`\``;
+	});
 	sendBotString("onExampleRequest", (msg) => message.reply(msg), (msg) => message.channel.send(msg), `\n\n${ls.join("\n\n")}`, "\n\n");
 });
 
@@ -388,8 +442,9 @@ registerCommand(["tutorial", "composing", "how", "howto"], (arg, args, message) 
 registerCommand(["play", "tune"], (arg, args, message) => {
 	try
 	{
-		generate_wav(message.guild.id, arg);
-		playSound(message);
+		generate_wav(message.guild.id, arg, () => {
+			playSound(message);
+		});
 	}
 	catch(error)
 	{
@@ -418,7 +473,7 @@ function processBotMessage(msg, message)
 }
 
 // make the discord connection
-const client = new Discord.Client();
+const client = new discord.Client();
 
 // once its all connected and good to go
 client.on("ready", () => {
