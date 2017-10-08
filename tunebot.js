@@ -1,32 +1,29 @@
 // todo:
-// loops
-// auto leave voice channels when not in use
-// delete messages after a bit in bot channel? maybe?
+// auto restart on error?
+// ~~invite-link command
 // arbitrary midi program numbers
 // arbitrary tempos too
-// relative octaves (nearest octave)
-// percussion
+// midi import and export via file sends
+// seriouly just... redo all the music code!
+//   especially have a proper expression parser, and make it a module on its own!
+//   loops and looping structures and ... sequential groups of parallel?
+//   fix starting rests
+//   inline tempo and patch changes
+//   percussion
+// private calls and dms
+// server specific config of sorts..
+//   including designated bot channel!! so i can make the bot say stuff there it needs to say on its own
+//   user example library
+// fancy server side repl
+//   debug logger
+// "scrolling" game presence for announcements and stuff?
 // edit messages, maybe?
+// relative octaves (nearest octave)
+// delete messages after a bit in bot channel? maybe?
 // encores with arguments
 // somehow fix playing unknown commands as music?
-// ~~invite-link command
-// private calls and dms
-// looping structures
-// inline tempo and patch changes
-// fix starting rests
-// auto restart on error?
-// read/play midi files?
-// midi import and export via file sends
 // inline musical snippits? :P
 // tts singer
-// "scrolling" game presence for announcements and stuff?
-// debug logger
-// fancy server side repl
-// seriouly just... redo all the music code!
-// especially have a proper expression parser
-// server specific config of sorts..
-// including designated bot channel!! so i can make the bot say stuff there it needs to say on its own
-// user example library
 //
 // join link:
 // https://discordapp.com/oauth2/authorize?client_id=365644276417298432&scope=bot&permissions=0
