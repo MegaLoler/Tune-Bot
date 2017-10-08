@@ -10,19 +10,22 @@
 //   fix starting rests
 //   inline tempo and patch changes
 //   percussion
+//   triplets
 // private calls and dms
 // server specific config of sorts..
+//   command permissions?
 //   including designated bot channel!! so i can make the bot say stuff there it needs to say on its own
 //   user example library
+//   delete messages after a bit in bot channel? maybe?
 // fancy server side repl
-//   debug logger
-// "scrolling" game presence for announcements and stuff?
+//   with debug logger
 // edit messages, maybe?
-// relative octaves (nearest octave)
-// delete messages after a bit in bot channel? maybe?
-// encores with arguments
-// somehow fix playing unknown commands as music?
 // inline musical snippits? :P
+// encores with arguments
+// "scrolling" game presence for announcements and stuff?
+// somehow fix playing unknown commands as music?
+// proper ~~commands listing
+// relative octaves (nearest octave)
 // tts singer
 //
 // join link:
