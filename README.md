@@ -1,6 +1,8 @@
 Tune Bot
 ========
 
+_**This bot has been succeeded by [LilyBot](https://github.com/MegaLoler/LilyBot)!!**_
+
 A simple bot written for Node.js for playing tunes in Discord voice channels with musical expressions!
 
 ## Add it to your Discord Server
@@ -16,7 +18,7 @@ Node.js dependencies:
 `discord.js`
 
 Command line dependencies:
-`timidity++`
+`timidity`
 `ffmpeg`
 
 ## Run
